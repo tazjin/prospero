@@ -194,6 +194,12 @@ static f32 stylesize(Fonts *f, i32 style)
     return (f32)(i32)(size + 0.5f);
 }
 
+// Glyphs are rasterized at this many times the display's density and drawn
+// at its size: the four samples a pixel averages smooth away the blockiness
+// of a stem drawn at 1x, at four times the atlas' memory. 2 supersamples;
+// 1 does not.
+static f32 const FONTDENSITY = 2;
+
 // The font for a style, at the display's density. ImGui tells a font
 // its density only while it is pushed, and these are drawn and measured
 // without that (ImDrawList::AddText, GetFontBaked): one never pushed
@@ -211,7 +217,7 @@ static ImFont *stylefont(Fonts *f, i32 style)
                italic ? f->italic : f->prose;
     }
     f32 density = ImGui::GetIO().DisplayFramebufferScale.x;
-    font->CurrentRasterizerDensity = density>0 ? density : 1;
+    font->CurrentRasterizerDensity = (density>0 ? density : 1) * FONTDENSITY;
     return font;
 }
 
@@ -223,6 +229,19 @@ static f32 smallsize(Fonts *f)
     f32 density = ImGui::GetIO().DisplayFramebufferScale.x;
     density = density>0 ? density : 1;
     return roundf(f->size*0.85f*density) / density;
+}
+
+// A baked font, its ascent in whole pixels. FreeType's ascent at twice the
+// density is often a half one (13.5 at 17 px), and ImGui, snapping a text's
+// origin to whole pixels, drew every glyph half a pixel high: the row a
+// glyph's bottom shares fell between pixel centres and was dropped, a row
+// off the feet of letters until the size made the ascent whole. A glyph is
+// placed from the ascent as it is baked, so it is fixed at its birth.
+static ImFontBaked *bakedpx(ImFont *font, f32 size)
+{
+    ImFontBaked *b = font->GetFontBaked(size);
+    b->Ascent = roundf(b->Ascent);
+    return b;
 }
 
 // Baked fonts per style, looked up once per frame: switching sizes
@@ -239,11 +258,11 @@ static ImFontBaked *stylebaked(Fonts *f, i32 style)
         } else if (s->gen != f->gen) {
             s->gen   = f->gen;
             s->key   = key;
-            s->baked = stylefont(f, style)->GetFontBaked(stylesize(f, style));
+            s->baked = bakedpx(stylefont(f, style), stylesize(f, style));
             return s->baked;
         }
     }
-    return stylefont(f, style)->GetFontBaked(stylesize(f, style));  // full
+    return bakedpx(stylefont(f, style), stylesize(f, style));  // full
 }
 
 static f32 fontadvance(void *ctx, i32 style, i32 cp)
