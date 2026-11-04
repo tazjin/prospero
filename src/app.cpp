@@ -31024,6 +31024,12 @@ static i32 detachgui(Gui *g, Arena scratch, Str *args, i32 nargs, Str here)
     return 1;
 }
 
+// No hinting: FreeType draws each glyph from its outline as it is, stems
+// and advances unrounded. At FONTDENSITY's supersampling that keeps the
+// edges soft, so the half pixel a quad edge loses is a gradient's, not a
+// row of ink. In every font's loader flags, below.
+static i32 const HINT = ImGuiFreeTypeLoaderFlags_NoHinting;
+
 // A font for each style, from fonts.cpp: prose falls back on code's font
 // and then the symbol subsets, code on the subsets, each fallback merged
 // into the face before it with the face's own flags (synthetic bold and
@@ -31076,6 +31082,7 @@ static void addemoji(i32 flags)
 
 static ImFont *addface(Str data, i32 flags)
 {
+    flags |= HINT;
     ImFont *f = addfont(data, flags, 0);
     if (data.data != fontmono().data) {
         addfont(fontmono(), flags, 1);
@@ -31119,7 +31126,7 @@ static void addsysfonts(Gui *g)
             f32 size = ems>0 && face.ems>0 ? 15*ems/face.ems : 15;
             ImFontConfig cfg;
             cfg.FontDataOwnedByAtlas = 0;
-            cfg.FontLoaderFlags      = (u32)face.flags;
+            cfg.FontLoaderFlags      = (u32)face.flags | HINT;
             cfg.MergeMode            = 1;
             cfg.DstFont              = face.font;
             cfg.FontNo               = ff->index;
@@ -31134,8 +31141,8 @@ static void addsysfonts(Gui *g)
 
 static void loadfonts(Gui *g)
 {
-    i32 bold   = ImGuiFreeTypeLoaderFlags_Bold;
-    i32 italic = ImGuiFreeTypeLoaderFlags_Oblique;
+    i32 bold   = ImGuiFreeTypeLoaderFlags_Bold | HINT;
+    i32 italic = ImGuiFreeTypeLoaderFlags_Oblique | HINT;
     Fonts *f = &g->fonts;
     f->prose      = addface(fontroboto(), 0);
     f->bold       = addface(fontroboto(), bold);
