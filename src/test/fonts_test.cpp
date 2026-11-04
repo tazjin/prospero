@@ -6,12 +6,12 @@ static void test_fonts(Test *t)
 {
     Arena a = t->perm;
 
-    // Each format the files use: Roboto and JetBrains Mono have format
-    // 12 subtables, the subsets only format 4
+    // Each format the parser reads: Go Medium's cmap has 4 and 6, Maple
+    // Mono's 4, 6 and 12, the subsets only 4
     expect(t, "fonts.roboto.a", istr(&a, fontcovers(fontroboto(), 'a')), "1");
-    expect(t, "fonts.roboto.arrow", istr(&a, fontcovers(fontroboto(), 0x2192)), "0");
+    expect(t, "fonts.roboto.arrow", istr(&a, fontcovers(fontroboto(), 0x2192)), "1");
     expect(t, "fonts.mono.arrow", istr(&a, fontcovers(fontmono(), 0x2192)), "1");
-    expect(t, "fonts.mono.check", istr(&a, fontcovers(fontmono(), 0x2714)), "0");
+    expect(t, "fonts.mono.check", istr(&a, fontcovers(fontmono(), 0x2714)), "1");
     expect(t, "fonts.symbols.check", istr(&a, fontcovers(fontsymbols(), 0x2714)), "1");
     expect(t, "fonts.symbols.a", istr(&a, fontcovers(fontsymbols(), 'a')), "0");
     expect(t, "fonts.math.return", istr(&a, fontcovers(fontmath(), 0x21b5)), "1");
@@ -67,10 +67,10 @@ static void test_fonts(Test *t)
     }
     expect(t, "fonts.icons.bad", finish(&bad), "");
 
-    // What draws nothing draws as U+FEFF, which each face's first font
-    // has (zero-width there); none of it is a glyph of its own anywhere
-    expect(t, "fonts.invisible.feff",
-           istr(&a, fontcovers(fontroboto(), 0xfeff) && fontcovers(fontmono(), 0xfeff)), "1");
+    // What draws nothing draws as U+FEFF, which the fonts merged into each
+    // face have, zero-width there: Maple Mono and JetBrains Mono, though
+    // Go Medium lacks it. None of it is a glyph of its own anywhere.
+    expect(t, "fonts.invisible.feff", istr(&a, fontprose(0xfeff)), "1");
     i32 drawn = 0;
     for (auto r : fontinvisible) {
         for (i32 cp = r[0]; cp <= r[1]; cp++) {
@@ -103,7 +103,7 @@ static void test_fonts(Test *t)
                                            fontcovers(fontemoji(), 0x2605)), "0");
     expect(t, "fonts.emoji.prose", istr(&a, fontprose(0x2705) && fontprose(0x1f680)), "1");
 
-    // A collection (.ttc) of one face, Roboto behind a "ttcf" header,
+    // A collection (.ttc) of one face, Go Medium behind a "ttcf" header,
     // its tables' offsets moved with it: the same face, found by index
     Str  rob = fontroboto();
     iz   hdr = 16;
@@ -123,8 +123,8 @@ static void test_fonts(Test *t)
     expect(t, "fonts.ttc.dir", istr(&a, fontface(ttc, 0)), "16");
     expect(t, "fonts.ttc.past", istr(&a, fontface(ttc, 1)), "-1");
     expect(t, "fonts.ttc.a", istr(&a, cmapcovers(fonttable(ttc, 16, 0x636d6170), 'a')), "1");
-    expect(t, "fonts.ttc.psname", fontpsname(&a, ttc, 16), "Roboto-Medium");
-    expect(t, "fonts.psname", fontpsname(&a, rob, 0), "Roboto-Medium");
+    expect(t, "fonts.ttc.psname", fontpsname(&a, ttc, 16), "GoMedium");
+    expect(t, "fonts.psname", fontpsname(&a, rob, 0), "GoMedium");
     expect(t, "fonts.plain.index", istr(&a, fontface(rob, 1)), "-1");
 
     // None of the embedded fonts has CJK, which the system's fill in
@@ -134,7 +134,7 @@ static void test_fonts(Test *t)
     expect(t, "fonts.cjk.embedded", istr(&a, cjk), "0");
     expect(t, "fonts.drawable", istr(&a, fontdrawable(rob, 0) && fontdrawable(ttc, 16)), "1");
     expect(t, "fonts.drawable.none", istr(&a, fontdrawable({}, 0)), "0");
-    // Roboto's hhea: 1900 above, 500 below, 2048 units per em
-    expect(t, "fonts.lineems", istr(&a, (i64)(fontlineems(rob, 0)*1000 + 0.5f)), "1172");
+    // Go's hhea: 1935 above, 432 below, 2048 units per em
+    expect(t, "fonts.lineems", istr(&a, (i64)(fontlineems(rob, 0)*1000 + 0.5f)), "1156");
     expect(t, "fonts.lineems.ttc", istr(&a, fontlineems(ttc, 16)==fontlineems(rob, 0)), "1");
 }

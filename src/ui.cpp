@@ -14774,8 +14774,8 @@ static void drawlog(Gui *g)
 // The fonts' licenses, which their files ask to be shown.
 static void drawfontcredits()
 {
-    ImGui::BulletText("Roboto: Copyright 2011 Google (Apache 2.0)");
-    ImGui::BulletText("JetBrains Mono: Copyright 2020 JetBrains (OFL 1.1)");
+    ImGui::BulletText("Go: Copyright 2016 Bigelow & Holmes (BSD-3-Clause)");
+    ImGui::BulletText("Maple Mono: Copyright 2022 subframe7536 (OFL 1.1)");
     ImGui::BulletText("Noto Sans Symbols 2, Noto Sans Math: Copyright 2022 "
                       "The Noto Project Authors, Google (OFL 1.1)");
     ImGui::BulletText("Codicons: Copyright Microsoft Corporation (CC BY 4.0)");

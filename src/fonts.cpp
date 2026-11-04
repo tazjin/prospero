@@ -1,12 +1,14 @@
 // The GUI's embedded fonts, and which characters they have
 //
-// Prose is Roboto Medium, code JetBrains Mono. Roboto lacks most of the
-// symbols models write in prose (arrows, check marks, box drawing), so
-// each Roboto face falls back on JetBrains Mono, and both on small
-// subsets of Noto Sans Symbols 2 and Noto Sans Math for what neither has
-// (heavy check marks, ballot boxes, stars, the return arrow), merged
-// into one ImFont in that order (app.cpp, loadfonts). assets/FONTS says
-// where each comes from; tools/symbols.py makes the subsets.
+// Prose is Go Medium, code Maple Mono. Go lacks some of the symbols
+// models write in prose (check marks, stars, the return arrow), so each
+// Go face falls back on Maple Mono, and both on small subsets of Noto
+// Sans Symbols 2 and Noto Sans Math for what neither has (heavy check
+// marks, ballot boxes, stars, the return arrow), merged into one ImFont
+// in that order (app.cpp, loadfonts), then on JetBrains Mono for the
+// keyboard symbols the others lack (⌘ ⌥ ⌃ ⏎ ⌫), which it alone has.
+// assets/FONTS says where each comes from; tools/symbols.py makes the
+// subsets.
 //
 // Buttons' icons are Codicons, merged after them all over its private
 // use range alone (U+EA60-F102), so it shadows nothing; ICON_* name the
@@ -31,10 +33,10 @@
 #  pragma clang diagnostic ignored "-Wc23-extensions"
 #endif
 static u8 const robotottf[] = {
-    #embed "../assets/Roboto-Medium.ttf"
+    #embed "../assets/Go-Medium.ttf"
 };
 static u8 const monottf[] = {
-    #embed "../assets/JetBrainsMono-Regular.ttf"
+    #embed "../assets/MapleMono-Regular.ttf"
 };
 static u8 const symbolsttf[] = {
     #embed "../assets/NotoSansSymbols2-subset.ttf"
@@ -48,18 +50,23 @@ static u8 const codiconttf[] = {
 static u8 const emojittf[] = {
     #embed "../assets/TwemojiMozilla-subset.ttf"
 };
+static u8 const jbmttf[] = {
+    #embed "../assets/JetBrainsMono-Regular.ttf"
+};
 #ifdef __clang__
 #  pragma clang diagnostic pop
 #endif
 
-// Prose's fallbacks after Roboto, in order: JetBrains Mono, then the
-// symbol subsets, which are also code's fallbacks.
+// Prose's fallbacks after Go Medium, in order: Maple Mono, then the
+// symbol subsets, which are also code's fallbacks, then JetBrains Mono
+// for what none of them has.
 static Str fontroboto()  { return {(u8 *)robotottf, countof(robotottf)}; }
 static Str fontmono()    { return {(u8 *)monottf, countof(monottf)}; }
 static Str fontsymbols() { return {(u8 *)symbolsttf, countof(symbolsttf)}; }
 static Str fontmath()    { return {(u8 *)mathttf, countof(mathttf)}; }
 static Str fonticons()   { return {(u8 *)codiconttf, countof(codiconttf)}; }
 static Str fontemoji()   { return {(u8 *)emojittf, countof(emojittf)}; }
+static Str fontjbm()     { return {(u8 *)jbmttf, countof(jbmttf)}; }
 
 // The icons buttons show, by their Codicons names
 #define ICON_ADD        "\xee\xa9\xa0"  // U+EA60
@@ -119,7 +126,7 @@ static Str fontemojiused =
 // Code points that draw nothing: variation selectors (U+FE0F after ⚠
 // asks for its emoji form, which ImGui, without shaping, cannot pick),
 // joiners, invisible operators and tags. Each face draws them as U+FEFF,
-// which Roboto and JetBrains Mono both have, empty and zero-width
+// which Maple Mono, merged into every face, has empty and zero-width
 // (app.cpp, addface), rather than as the "?" of a missing glyph.
 static i32 const fontinvisible[][2] = {
     {0x200c, 0x200d}, {0x2060, 0x2064}, {0xfe00, 0xfe0f},
@@ -321,10 +328,10 @@ static u32 fontcjkmask(Str file, iz dir)
     return mask;
 }
 
-// Whether prose shows the code point: Roboto, or one of its fallbacks.
+// Whether prose shows the code point: Go Medium, or one of its fallbacks.
 static b32 fontprose(i32 cp)
 {
     return fontcovers(fontroboto(), cp) || fontcovers(fontmono(), cp) ||
            fontcovers(fontsymbols(), cp) || fontcovers(fontmath(), cp) ||
-           fontcovers(fontemoji(), cp);
+           fontcovers(fontjbm(), cp) || fontcovers(fontemoji(), cp);
 }
