@@ -68,6 +68,7 @@
 #include "view.cpp"
 #include "theme.cpp"
 #include "fonts.cpp"
+#include "fontloader.cpp"
 #include "place.cpp"
 #include "compose.cpp"
 #include "pathpick.cpp"
@@ -31851,6 +31852,9 @@ static i32 gui_main(Os *os, Arena mem, Str *args, i32 nargs)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
+    // Glyphs come from fontloader.cpp's loader, which pads each bitmap so
+    // that its quad covers the transparency an edge between pixels needs.
+    io.Fonts->SetFontLoader(paddedfreetype());
     io.UserData     = g;
     io.IniFilename  = 0;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
