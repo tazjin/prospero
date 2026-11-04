@@ -7176,7 +7176,7 @@ static void drawprompt(Gui *g)
     }
 
     // Its buttons, icons in two columns beside it
-    f32 bw = 1.5f*ImGui::GetFrameHeight();
+    f32 bw = iconw();  // its buttons' icons, as every other icon button's
     ImVec2 size = v2(ImGui::GetContentRegionAvail().x - 2*bw - 2*ImGui::GetStyle().ItemSpacing.x,
                      ImGui::GetContentRegionAvail().y);
     i32 selbefore = g->mentionsel;  // the pick before this frame's keys
@@ -7383,7 +7383,7 @@ static void drawprompt(Gui *g)
     ImGui::SameLine();
     ImGui::BeginGroup();
     ImGui::BeginDisabled(!can || editing);
-    send |= ImGui::Button(v->busy ? ICON_REPLY "##send" : ICON_SEND "##send", v2(bw, 0));
+    send |= iconbutton(v->busy ? ICON_REPLY "##send" : ICON_SEND "##send");
     itemnamed(g, "send");
     i32 waits = v->busy ? askwaits(v) : WAITS_NONE;
     itemtip(!v->busy               ? "Send the prompt (Enter; Shift+Enter for a new line)"
@@ -7402,7 +7402,7 @@ static void drawprompt(Gui *g)
                                               : attachwhy(s);
         why = why.len ? why : attachpending(g, s);
         ImGui::BeginDisabled(why.len>0 || editing);
-        if (ImGui::Button(ICON_ATTACH "##attach", v2(bw, 0))) {
+        if (iconbutton(ICON_ATTACH "##attach")) {
             attachpick(g, s);
         }
         ImGui::EndDisabled();
