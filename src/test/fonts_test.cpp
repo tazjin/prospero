@@ -16,6 +16,9 @@ static void test_fonts(Test *t)
     expect(t, "fonts.symbols.a", istr(&a, fontcovers(fontsymbols(), 'a')), "0");
     expect(t, "fonts.math.return", istr(&a, fontcovers(fontmath(), 0x21b5)), "1");
     expect(t, "fonts.math.beyond", istr(&a, fontcovers(fontmath(), 0x1f600)), "0");
+    expect(t, "fonts.arabic.alif", istr(&a, fontcovers(fontarabic(), 0x0627)), "1");
+    expect(t, "fonts.arabic.latin", istr(&a, fontcovers(fontarabic(), 'a')), "0");
+    expect(t, "fonts.arabic.prose", istr(&a, fontprose(0x0639)), "1");
     expect(t, "fonts.none", istr(&a, fontcovers({}, 'a')), "0");
     expect(t, "fonts.cut", istr(&a, fontcovers({(u8 *)robotottf, 400}, 'a')), "0");
 

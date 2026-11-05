@@ -26892,8 +26892,8 @@ static i32 detachgui(Gui *g, Str *args, i32 nargs, Str here)
 static i32 const HINT = ImGuiFreeTypeLoaderFlags_NoHinting;
 
 // A font for each style, from fonts.cpp: prose falls back on code's font,
-// the symbol subsets and JetBrains Mono, code on the subsets and JetBrains
-// Mono, each fallback merged
+// the symbol subsets, Arabic and JetBrains Mono, code on the subsets,
+// Arabic and JetBrains Mono, each fallback merged
 // into the face before it with the face's own flags (synthetic bold and
 // oblique), so that a symbol in bold prose is bold. Glyphs share the
 // first font's baseline, which the loader aligns them on.
@@ -26951,6 +26951,7 @@ static ImFont *addface(Str data, i32 flags)
     }
     addfont(fontsymbols(), flags, 1);
     addfont(fontmath(), flags, 1);
+    addfont(fontarabic(), flags, 1);
     addfont(fontjbm(), flags, 1);
     addicons(flags);
     addemoji(flags);

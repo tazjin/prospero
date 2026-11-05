@@ -21,6 +21,11 @@ blocks, less what the fonts ahead of it have (which stay text, as in a
 terminal), and with no sequences (flags, skin tones, joined families),
 which ImGui, without shaping, cannot form.
 
+Arabic comes from Noto Sans Arabic (SIL OFL 1.1), as google/fonts has
+its variable font at a pinned commit, checked by SHA-256 and instanced
+to its Regular before subsetting: the Arabic block. ImGui draws it
+without shaping or bidi, so the letters stay isolated.
+
 The subsets are deterministic: the same inputs
 and fontTools version make the same bytes. --check makes them in memory
 and compares them with assets/, writing nothing.
@@ -35,6 +40,7 @@ import urllib.request
 
 from fontTools import subset
 from fontTools.ttLib import TTFont
+from fontTools.varLib import instancer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GF = "https://raw.githubusercontent.com/google/fonts"
@@ -55,6 +61,21 @@ FONTS = [
         "out": "NotoSansMath-subset.ttf",
         # Arrows with corners, circles, pairs; long double arrows; bullets
         "text": "↵↳↲↰↱⤷⤶↻↺⟳⟲⇄⇆⇅⟹⟸⟺⁃⊨∝⌀",
+    },
+    {
+        # The VF at this commit, instanced to its Regular, as below
+        "url": f"{GF}/e5ee31305efa101c2cae65f44d9642df2c8f0b4d/ofl/"
+               "notosansarabic/NotoSansArabic[wdth,wght].ttf",
+        "sha256": "63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e",
+        "out": "NotoSansArabic-subset.ttf",
+        # Arabic: its block, and the marks and punctuation round it, less
+        # what the fonts ahead of it in the chain have. No shaping, and no
+        # bidi in ImGui: the letters show isolated, left to right.
+        "ranges": [(0x0600, 0x06ff)],
+        "skip": ["Go-Medium.ttf", "MapleMono-Regular.ttf",
+                 "NotoSansSymbols2-subset.ttf", "NotoSansMath-subset.ttf"],
+        "instance": {"wght": 400, "wdth": 100},
+        "drop": ["GSUB", "GPOS", "GDEF", "FFTM"],
     },
     {
         "url": "https://github.com/mozilla/twemoji-colr/releases/download/"
@@ -105,6 +126,8 @@ def codepoints(f, font):
 
 def make(data, f):
     font = TTFont(io.BytesIO(data), recalcTimestamp=False)
+    if f.get("instance"):
+        instancer.instantiateVariableFont(font, f["instance"], inplace=True)
     opts = subset.Options()
     opts.name_IDs = ["*"]       # the copyright and license stay
     opts.name_languages = ["*"]

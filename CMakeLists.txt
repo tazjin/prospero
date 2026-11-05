@@ -171,6 +171,7 @@ set_property(SOURCE src/main_posix.cpp src/main_win32.cpp src/main_test.cpp
   ${PROJECT_SOURCE_DIR}/assets/JetBrainsMono-Regular.ttf
   ${PROJECT_SOURCE_DIR}/assets/NotoSansSymbols2-subset.ttf
   ${PROJECT_SOURCE_DIR}/assets/NotoSansMath-subset.ttf
+  ${PROJECT_SOURCE_DIR}/assets/NotoSansArabic-subset.ttf
   ${PROJECT_SOURCE_DIR}/assets/codicon.ttf
   ${PROJECT_SOURCE_DIR}/assets/prospero.png)
 
