@@ -35,6 +35,21 @@ NotoSansSymbols2-subset.ttf, NotoSansMath-subset.ttf
     SHA-256 7fb88435205f87de14836b5097be625f9e8d31757c0934c3e81c6324ba4d2b46
             NotoSansMath-subset.ttf
 
+NotoSansArabic-subset.ttf
+    A subset of Noto Sans Arabic, made by tools/symbols.py from
+    google/fonts' variable font at the commit and SHA-256 digest it
+    names, instanced to its Regular: the Arabic block U+0600-06FF,
+    less what the fonts merged ahead of it have. ImGui draws it without
+    shaping or bidi, so its letters show isolated, left to right.
+    Copyright 2022 The Noto Project Authors
+    https://github.com/notofonts/arabic
+    SIL Open Font License, Version 1.1 (no Reserved Font Names)
+    https://openfontlicense.org
+    SHA-256 63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e
+            NotoSansArabic[wdth,wght].ttf (google/fonts e5ee3130)
+    SHA-256 08ecb5e325605ed1af1de1fe148d6a055e0e37454f0be3846457e192965edee7
+            NotoSansArabic-subset.ttf
+
 codicon.ttf
     Codicons, version 1.15, the icon font of Visual Studio Code,
     decompressed unchanged from dcmake's src/icon_font.hpp: the icons of

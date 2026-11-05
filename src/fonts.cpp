@@ -7,6 +7,9 @@
 // marks, ballot boxes, stars, the return arrow), merged into one ImFont
 // in that order (app.cpp, loadfonts), then on JetBrains Mono for the
 // keyboard symbols the others lack (⌘ ⌥ ⌃ ⏎ ⌫), which it alone has.
+// Arabic comes from a subset of Noto Sans Arabic, which ImGui draws
+// without shaping or bidi: each letter in the form its code point
+// names, isolated, the words in the line's left-to-right order.
 // assets/FONTS says where each comes from; tools/symbols.py makes the
 // subsets.
 //
@@ -44,6 +47,9 @@ static u8 const symbolsttf[] = {
 static u8 const mathttf[] = {
     #embed "../assets/NotoSansMath-subset.ttf"
 };
+static u8 const arabicttf[] = {
+    #embed "../assets/NotoSansArabic-subset.ttf"
+};
 static u8 const codiconttf[] = {
     #embed "../assets/codicon.ttf"
 };
@@ -58,12 +64,13 @@ static u8 const jbmttf[] = {
 #endif
 
 // Prose's fallbacks after Go Medium, in order: Maple Mono, then the
-// symbol subsets, which are also code's fallbacks, then JetBrains Mono
-// for what none of them has.
+// symbol subsets, which are also code's fallbacks, then Arabic, then
+// JetBrains Mono for what none of them has.
 static Str fontroboto()  { return {(u8 *)robotottf, countof(robotottf)}; }
 static Str fontmono()    { return {(u8 *)monottf, countof(monottf)}; }
 static Str fontsymbols() { return {(u8 *)symbolsttf, countof(symbolsttf)}; }
 static Str fontmath()    { return {(u8 *)mathttf, countof(mathttf)}; }
+static Str fontarabic()  { return {(u8 *)arabicttf, countof(arabicttf)}; }
 static Str fonticons()   { return {(u8 *)codiconttf, countof(codiconttf)}; }
 static Str fontemoji()   { return {(u8 *)emojittf, countof(emojittf)}; }
 static Str fontjbm()     { return {(u8 *)jbmttf, countof(jbmttf)}; }
@@ -113,11 +120,11 @@ static Str fonticonsused =
 
 // Symbols models commonly write in prose: arrows, check marks and
 // crosses, bullets, math, shapes, ballot boxes, keyboard symbols, box
-// drawing, dashes and curly quotes.
+// drawing, dashes and curly quotes; a word and a mark of Arabic's.
 static Str fontsymbolsused =
     "→ ← ↑ ↓ ↔ ⇒ ⇐ ⇔ ↵ ↳ ↻ ⟶ ✓ ✗ ✔ ✘ • … ≤ ≥ ≠ ≈ × ± ° ∞ √ ≡ ∈ ∅ "
     "▶ ▸ ▾ ▼ ▲ ◀ ● ○ ■ □ ◆ ★ ☆ ☐ ☑ ☒ ⚠ ⏳ ✎ ✂ "
-    "⌘ ⇧ ⌥ ⌃ ⏎ ⌫ ⇥ ─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼ ═ ║ — – ‘ ’ “ ” « » ′ ″";
+    "⌘ ⇧ ⌥ ⌃ ⏎ ⌫ ⇥ ─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼ ═ ║ — – ‘ ’ “ ” « » ′ ″ السلام ، ؛ ؟";
 
 // Emoji models commonly write, each of which Twemoji's subset must have
 static Str fontemojiused =
@@ -127,11 +134,13 @@ static Str fontemojiused =
 
 // Code points that draw nothing: variation selectors (U+FE0F after ⚠
 // asks for its emoji form, which ImGui, without shaping, cannot pick),
-// joiners, invisible operators and tags. Each face draws them as U+FEFF,
-// which Maple Mono, merged into every face, has empty and zero-width
-// (app.cpp, addface), rather than as the "?" of a missing glyph.
+// joiners, invisible operators, the bidi marks and tags. Each face
+// draws them as U+FEFF, which Maple Mono, merged into every face, has
+// empty and zero-width (app.cpp, addface), rather than as the "?" of a
+// missing glyph.
 static i32 const fontinvisible[][2] = {
-    {0x200c, 0x200d}, {0x2060, 0x2064}, {0xfe00, 0xfe0f},
+    {0x200c, 0x200d}, {0x200e, 0x200f},
+    {0x2060, 0x2064}, {0xfe00, 0xfe0f},
     {0xe0020, 0xe007f}, {0xe0100, 0xe01ef},
 };
 
@@ -335,5 +344,6 @@ static b32 fontprose(i32 cp)
 {
     return fontcovers(fontroboto(), cp) || fontcovers(fontmono(), cp) ||
            fontcovers(fontsymbols(), cp) || fontcovers(fontmath(), cp) ||
+           fontcovers(fontarabic(), cp) ||
            fontcovers(fontjbm(), cp) || fontcovers(fontemoji(), cp);
 }
