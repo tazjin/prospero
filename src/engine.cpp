@@ -992,6 +992,9 @@ struct Session {
     Slice<McpTool>    mcptools;   // offered, as its prefix has them
     Slice<McpServer *> mcpsrvs;   // the servers it offers
     Str          mcpfilter;  // its role's tools, null for every MCP tool
+    Slice<Str>   mcpable;    // servers the agent chose per session (mcp tool);
+                             // its tools are added to mcpable, others to mcpout
+    Slice<Str>   mcpout;     // servers the agent turned off this session
     b32          mcpfixed;   // its tools were fixed by a request
     b32          mcpquiet;   // they join a rebuilt prefix, untold (reprefix)
     Slice<Str>   mcpwarned;  // servers whose failure it was told
@@ -10863,6 +10866,157 @@ static b32 toolskill(Session *s, Arena scratch, Args *args)
     return 1;
 }
 
+// Whether a server is in a list of names.
+static b32 mcpnamed(Slice<Str> list, Str name)
+{
+    for (iz i = 0; i < list.len; i++) {
+        if (list[i] == name) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Forward: the MCP offering and listing helpers (engine.cpp, "MCP
+// servers"), defined after the tool handlers.
+static Slice<Str> mcpnames(Engine *, Arena *);
+static void mcpoffer(Session *, Arena);
+static Slice<Str> mcpsnownames(Session *, Arena);
+static void mcpdrop(Session *, Arena, Str);
+static McpServer *mcpsrvof(Session *, Str);
+static void logprefix(Session *, Arena);
+static b32 mcpchosen1(Str, Slice<Str>, Slice<Str>, b32);
+
+// The names of the servers a session could offer, of its configuration
+// ([mcp NAME] enabled with a command or url) and its project's
+// (.mcp.json), as mcpoffer collects them.
+static Slice<Str> mcpsnownames(Session *s, Arena scratch)
+{
+    Engine    *e     = s->e;
+    Slice<Str> names = mcpnames(e, &scratch);
+    for (iz i = 0; i < s->mcpdefs.len; i++) {
+        Str n = s->mcpdefs[i].name;
+        if (n.len && !mcpnamed(names, n)) {
+            names = push(&scratch, names, n);
+        }
+    }
+    return names;
+}
+
+// Take a server's tools out of the session's offered tools now: its
+// entries leave mcptools, and the request's tools array is rebuilt from
+// what remains (the built-in tools besides the other servers').
+static void mcpdrop(Session *s, Arena scratch, Str server)
+{
+    iz n = 0;
+    for (iz i = 0; i < s->mcptools.len; i++) {
+        if (s->mcptools[i].server != server) {
+            s->mcptools[n++] = s->mcptools[i];
+        }
+    }
+    s->mcptools.len = n;
+    s->tools = clone(&s->perm, mcpaddtools(&scratch,
+                     tooljson(&s->perm, &s->te), s->mcptools));
+    logprefix(s, scratch);
+}
+
+// The mcp tool: list the MCP servers of the session, or turn one's
+// tools on or off for the session.
+static b32 toolmcp(Session *s, Arena scratch, Args *args)
+{
+    if (args->action == "list") {
+        Buf b(&scratch, 1024);
+        b32 any = 0;
+        for (iz i = 0; i < s->mcpsrvs.len; i++) {
+            McpServer *m = s->mcpsrvs[i];
+            Str name = m->name;
+            // whether the server's tools reach the prompt now
+            b32 offered = 0;
+            for (iz k = 0; k < s->mcptools.len; k++) {
+                offered |= s->mcptools[k].server == name;
+            }
+            if (any) putbyte(&b, '\n');
+            print(&b, m->name);
+            print(&b, offered ? Str(" (offered)") : Str(" (not offered)"));
+            if (!offered) {
+                b32 on = cfgbool(trim(cfgget(s->e->cfg, "mcp", name, "on_demand", 0)))!=0;
+                if (on) {
+                    print(&b, Str(", on demand: enable it to use its tools"));
+                }
+            }
+            any = 1;
+        }
+        if (!any) {
+            print(&b, "No MCP servers are configured for this session.");
+        }
+        // The not-yet-started on-demand servers, and any never offered
+        Slice<Str> names = mcpsnownames(s, scratch);
+        for (iz i = 0; i < names.len; i++) {
+            if (mcpsrvof(s, names[i]) || mcpnamed(s->mcpout, names[i])) {
+                continue;
+            }
+            Str name = names[i];
+            if (any) putbyte(&b, '\n');
+            b32 on = cfgbool(trim(cfgget(s->e->cfg, "mcp", name, "on_demand", 0)))!=0;
+            print(&b, name);
+            print(&b, on ? Str(" (on demand: say mcp enable to use its tools)")
+                         : Str(" (offered)"));
+            any = 1;
+        }
+        toolend(s, scratch, "ok", finish(&b), 0, 0, {}, 0);
+        return 1;
+    }
+
+    // enable or disable: a server it can offer must be named
+    Str server = args->name;
+    if (!server.len) {
+        toolend(s, scratch, "error", "name the server. Its options are: "
+                "mcp list enables or disables a server by its name, as mcp list "
+                "shows them.", 0, 0, {}, 0);
+        return 1;
+    }
+    Slice<Str> names = mcpsnownames(s, scratch);
+    if (!mcpnamed(names, server)) {
+        toolend(s, scratch, "error", concat(&scratch, concat(&scratch,
+                "no MCP server is named \"", server), "\"; see mcp list "
+                "for the session's servers"), 0, 0, {}, 0);
+        return 1;
+    }
+
+    if (args->action == "enable") {
+        // take it out of the turned-off set, and mark it chosen (if it
+        // is on demand); the next request offers and starts it
+        for (iz i = 0; i < s->mcpout.len; i++) {
+            if (s->mcpout[i] == server) {
+                s->mcpout[i] = s->mcpout[s->mcpout.len-1];  s->mcpout.len--;
+                break;
+            }
+        }
+        if (!mcpnamed(s->mcpable, server)) {
+            s->mcpable = push(&s->perm, s->mcpable, clone(&s->perm, server));
+        }
+        mcpoffer(s, scratch);  // starts it if not running
+        toolend(s, scratch, "ok", "The MCP server's tools will be offered "
+                "from the next request as it starts.", 0, 0, {}, 0);
+        return 1;
+    }
+
+    // disable: take its tools out of the prompt now
+    for (iz i = 0; i < s->mcpable.len; i++) {
+        if (s->mcpable[i] == server) {
+            s->mcpable[i] = s->mcpable[s->mcpable.len-1];  s->mcpable.len--;
+            break;
+        }
+    }
+    if (!mcpnamed(s->mcpout, server)) {
+        s->mcpout = push(&s->perm, s->mcpout, clone(&s->perm, server));
+    }
+    mcpdrop(s, scratch, server);
+    toolend(s, scratch, "ok", "The MCP server's tools are no longer offered "
+            "this session; enable it again to bring them back.", 0, 0, {}, 0);
+    return 1;
+}
+
 // The text of a prompt invoking a skill (prompt {skill}): its
 // instructions, then what the user typed, args. The user's own skills
 // too, hidden from the agent. The text null if it cannot be, with why.
@@ -12264,8 +12418,40 @@ static McpServer *mcpserver(Session *s, Arena scratch, Str name)
     return m;
 }
 
+// The core choice, once on_demand is known: the session's explicit choice
+// to turn the server off always wins; otherwise an on_demand server offers
+// its tools only once the agent chose it this session (able), and any
+// other server is offered as before.
+static b32 mcpchosen1(Str name, Slice<Str> out, Slice<Str> able, b32 on_demand)
+{
+    for (iz i = 0; i < out.len; i++) {
+        if (out[i] == name) {
+            return 0;
+        }
+    }
+    if (!on_demand) {
+        return 1;
+    }
+    for (iz i = 0; i < able.len; i++) {
+        if (able[i] == name) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // The servers a session offers: those of its tools, and the
 // configuration's that its role may use. Started where they may be.
+// Whether a server's tools reach the session's prompt now: the agent may
+// have turned the server off for the session (mcpout), which always wins;
+// otherwise an on_demand server offers its tools only once the agent chose
+// it this session (mcpable), and any other server offers them as before.
+static b32 mcpchosen(Session *s, Str server)
+{
+    return mcpchosen1(server, s->mcpout, s->mcpable,
+                      cfgbool(trim(cfgget(s->e->cfg, "mcp", server, "on_demand", 0))));
+}
+
 static void mcpoffer(Session *s, Arena scratch)
 {
     Engine    *e     = s->e;
@@ -12283,7 +12469,7 @@ static void mcpoffer(Session *s, Arena scratch)
         for (iz k = 0; k < i; k++) {
             seen |= names[k] == names[i];
         }
-        if (seen || !mcpanyallowed(s->mcpfilter, names[i])) {
+        if (seen || !mcpanyallowed(s->mcpfilter, names[i]) || !mcpchosen(s, names[i])) {
             continue;
         }
         McpServer *m = mcpserver(s, scratch, names[i]);
@@ -12901,7 +13087,8 @@ static b32 mcpgate(Session *s, Arena scratch)
         for (iz k = 0; k < m->tools.len; k++) {
             McpTool *t = &m->tools[k];
             if (!mcpallowed(s->mcpfilter, m->name, t->name) ||
-                    !mcpkept(s->e, m->name, t->tool) || mcptoolof(s, t->name)) {
+                    !mcpkept(s->e, m->name, t->tool) ||
+                    !mcpchosen(s, m->name) || mcptoolof(s, t->name)) {
                 continue;
             }
             b32 clash = toolfind(t->name) != TOOL_NONE;
@@ -15561,6 +15748,7 @@ static b32 runtool(Session *s, Arena scratch)
     case TOOL_JOBOUT:  tooljobout(s, scratch, &args);  return 1;
     case TOOL_JOBKILL: tooljobkill(s, scratch, &args); return 1;
     case TOOL_SKILL:   return toolskill(s, scratch, &args);
+    case TOOL_MCP:     return toolmcp(s, scratch, &args);
     case TOOL_SESSIONS: toolsessions(s, scratch);      return 1;
     case TOOL_MESSAGE: toolmessage(s, scratch, &args); return 1;
     case TOOL_MEMORY:  toolmemory(s, scratch, &args);  return 1;

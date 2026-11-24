@@ -946,6 +946,10 @@ static CfgKey cfgschema[] = {
      "by default all"},
     {"mcp", "enabled", CFG_BOOL, "true", {}, {}, "mcp",
      "Offer the server's tools to new sessions"},
+    {"mcp", "on_demand", CFG_BOOL, "false", {}, {}, "mcp",
+     "Offer no tools of the server to a new session; the agent turns its "
+     "tools on for the session with the mcp tool (mcp enable NAME). Its "
+     "name and offering still show in mcp list"},
     {"mcp", "startup_timeout", CFG_SECONDS, "30", {}, {}, "mcp",
      "Seconds a server may take to start and list its tools, which a "
      "session's first request waits for"},

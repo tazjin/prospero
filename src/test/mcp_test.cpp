@@ -89,6 +89,32 @@ static void test_mcp(Test *t)
         }
     }
 
+    // The toggle decision (mcpchosen1): a name the session turned off
+    // always loses, an on_demand server is offered only once chosen for
+    // the session, and any other server is offered as before.
+    {
+        Slice<Str> none;
+        Slice<Str> off  = push(&a, none, Str("tracker"));
+        Slice<Str> able = push(&a, none, Str("gpt"));
+        Slice<Str> offg = push(&a, none, Str("gpt"));
+        static struct { Str name; Slice<Str> out, able; b32 on_demand, want; } const c[] = {
+            // not on demand: offered unless turned off
+            {"wiki",   {},      {},      0, 1},
+            {"tracker", off,    {},      0, 0},
+            // on demand: a teaser unless chosen this session
+            {"wiki",   {},      {},      1, 0},
+            {"gpt",    {},      able,    1, 1},
+            {"tracker", off,    {},      1, 0},
+            // explicit choice out wins over having been enabled
+            {"gpt",    offg,    able,    1, 0},
+        };
+        for (iz i = 0; i < countof(c); i++) {
+            expect(t, "mcp chosen", mcpchosen1(c[i].name, c[i].out, c[i].able,
+                                               c[i].on_demand) ? Str("yes") : Str("no"),
+                   c[i].want ? Str("yes") : Str("no"));
+        }
+    }
+
     {
         // Settings' checkbox: the value written, "<drop>" for none,
         // "<incl>" for "" (an include sets it), or the error's start

@@ -51,6 +51,7 @@ enum : i32 {
     TOOL_WEBFETCH,
     TOOL_ASKUSER,
     TOOL_READTERM,
+    TOOL_MCP,
     TOOL_COUNT,
 };
 
@@ -58,7 +59,7 @@ static Str toolnames[] = {
     "read", "write", "edit", "shell", "grep", "glob", "todo_write", "jobs",
     "job_output", "job_kill", "task", "desktop", "skill", "enter_plan_mode",
     "exit_plan_mode", "sessions", "send_message", "memory", "web_search",
-    "web_fetch", "ask_user", "read_terminal",
+    "web_fetch", "ask_user", "read_terminal", "mcp",
 };
 static_assert(countof(toolnames) == TOOL_COUNT);
 
@@ -208,7 +209,7 @@ static b32 tooloffered(ToolEnv *te, i32 tool)
 // mode's. As a word of a tool list, "default".
 #define TOOLS_DEFAULT "read write edit shell grep glob todo_write jobs " \
                       "job_output job_kill task skill sessions send_message " \
-                      "memory web_search web_fetch read_terminal"
+                      "memory web_search web_fetch read_terminal mcp"
 
 // The tools of a session on the built-in model, unless its role or its
 // caller names some: a small model did as well with these alone in the
@@ -987,6 +988,23 @@ static Str tooljson(Arena *a, ToolEnv *te)
                  "last lines)", 0, {}},
                 {"wait", "boolean", "Wait for the command running in the tab "
                  "to end: you are told in a new turn, so end this one", 0, {}},
+            },
+        },
+        {
+            "mcp",
+            "Turn a configured MCP server's tools on or off for this "
+            "session, or list them. list shows each server's name and "
+            "whether its tools reach you now: an on_demand server's tools "
+            "do so only once you enable it. enable NAME offers the "
+            "server's tools from the next request, waiting for it to "
+            "start; disable NAME takes them back at once. What enabling "
+            "offers still asks or is trusted as the server's [mcp NAME] "
+            "section says.",
+            {
+                {"action", "string", "list, enable or disable", 1,
+                 "\"enum\":[\"list\",\"enable\",\"disable\"]"},
+                {"server", "string", "The server to enable or disable, "
+                 "its name from mcp list; omit for list", 0, {}},
             },
         },
     };
@@ -2487,6 +2505,18 @@ static Args parseargs(Arena *a, i32 tool, Str raw, i32 edit)
             issue(a, &r, "name", "must not be empty");
         }
         break;
+    case TOOL_MCP:
+        r.action = trim(argstr(a, &r, j, "action", 1));
+        r.name   = trim(argstr(a, &r, j, "server", 0));
+        if (r.action.data && !r.action.len) {
+            issue(a, &r, "action", "must not be empty");
+        } else if (!(r.action=="list" || r.action=="enable" || r.action=="disable")) {
+            issue(a, &r, "action", "must be list, enable or disable");
+        }
+        if (r.name.data && !r.name.len) {
+            issue(a, &r, "server", "must not be empty");
+        }
+        break;
     case TOOL_PLANENTER:
     case TOOL_PLANEXIT:
     case TOOL_SESSIONS:
@@ -2622,6 +2652,9 @@ static Str unknowntool(Arena *a, Str name, u32 deny)
         {"read_term", "read_terminal"}, {"readterminal", "read_terminal"},
         {"get_terminal_output", "read_terminal"},
         {"ask_followup_question", "ask_user"},
+        {"enable_mcp", "mcp"}, {"disable_mcp", "mcp"},
+        {"activate_mcp", "mcp"}, {"deactivate_mcp", "mcp"},
+        {"mcp_enable", "mcp"}, {"mcp_disable", "mcp"},
     };
     ToolEnv te = {};
     te.deny = deny;
