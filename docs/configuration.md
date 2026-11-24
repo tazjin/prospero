@@ -396,6 +396,15 @@ to an included server, a `token = file:PATH` say, or `trust = yes`,
 which for a url from a web include wait for your approval (see
 Includes).
 
+`on_demand = true` keeps a server's tools out of every new session's
+prompt: they are offered in `mcp list`, but only start once the agent
+turns them on for the session with the `mcp` tool. The `mcp` tool, one
+of the built-ins, lists the session's servers as `mcp enable NAME`
+or `mcp disable NAME` (or the aliases `activate_mcp` / `deactivate_mcp`).
+`mcp disable NAME` also takes a server already offering tools out of the
+prompt for the rest of the session. This is per session; a session's
+choices are shown in `mcp list` and kept in its state.
+
 A project's `.mcp.json`, in Claude Code's format, with `${VAR}` and
 `${VAR:-default}` expanded, is read once as a session starts, from its
 folder up to the repository's root. Its servers start only once you
