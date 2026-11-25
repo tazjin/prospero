@@ -403,7 +403,10 @@ of the built-ins, lists the session's servers as `mcp enable NAME`
 or `mcp disable NAME` (or the aliases `activate_mcp` / `deactivate_mcp`).
 `mcp disable NAME` also takes a server already offering tools out of the
 prompt for the rest of the session. This is per session; a session's
-choices are shown in `mcp list` and kept in its state.
+choices are shown in `mcp list` and kept in its state. A server's
+`description` (a line or three of what it is for) shows in the `mcp`
+tool so the agent knows an on-demand server is there and what it does
+before enabling it.
 
 A project's `.mcp.json`, in Claude Code's format, with `${VAR}` and
 `${VAR:-default}` expanded, is read once as a session starts, from its
