@@ -187,6 +187,7 @@ struct ToolEnv {
     b32 vision;      // the model takes images, which read then shows
     b32 pdf;         // and PDFs, which read sends as documents
     i32 year;        // when the prefix was built, for web_search
+    Str mcpavail;    // on-demand MCPs to hint at, "NAME: description" lines
 };
 
 static i32 toolfind(Str name)
@@ -1105,6 +1106,12 @@ static Str tooljson(Arena *a, ToolEnv *te)
     }
 
     putarray(&w);
+    // The mcp tool's description names the session's on-demand MCPs, so
+    // the model knows what it may enable; none, and nothing is added.
+    Str mcpdesc = defs[TOOL_MCP].desc;
+    if (te->mcpavail.len) {
+        mcpdesc = concat(a, mcpdesc, te->mcpavail);
+    }
     for (iz i = 0; i < countof(defs); i++) {
         Def *d = &defs[i];
         if (!tooloffered(te, (i32)i)) {
@@ -1118,7 +1125,7 @@ static Str tooljson(Arena *a, ToolEnv *te)
         putkey(&w, "name");
         putstr(&w, d->name);
         putkey(&w, "description");
-        putstr(&w, d->desc);
+        putstr(&w, (i32)i == TOOL_MCP ? mcpdesc : d->desc);
         putkey(&w, "parameters");
         putobject(&w);
         putkey(&w, "type");

@@ -470,4 +470,47 @@ static void test_mcp(Test *t)
         m = mcpasmurls(&a, "https://h/");
         expect(t, "mcp asm root", m[0], "https://h/.well-known/oauth-authorization-server");
     }
+
+    // The on-demand roster for the mcp tool: only servers that are
+    // enabled, on demand, named by the session's filter and described.
+    {
+        Arena  b = a;
+        CfgEnv v = newcfgenv(&b);
+        addenv(v.os, &b, "HOME=/home/u");
+        os_write(v.os, b, "/c/prospero.ini",
+            "[mcp on]\n"
+            "command = srv\n"
+            "on_demand = true\n"
+            "description = the on-demand one\n"
+            "[mcp regular]\n"
+            "command = srv\n"
+            "description = not on demand\n"
+            "[mcp off]\n"
+            "command = srv\n"
+            "enabled = false\n"
+            "on_demand = true\n"
+            "description = disabled\n"
+            "[mcp nodesc]\n"
+            "command = srv\n"
+            "on_demand = true\n"
+            "[mcp other]\n"
+            "command = srv\n"
+            "on_demand = true\n"
+            "description = filtered out\n");
+        Config *c     = newconfig(v.os, &b, v.scratch, "/c/prospero.ini", 0);
+        Engine  e     = {};
+        e.cfg         = c;
+        e.ini         = c->ini;
+        Session s     = {};
+        s.e           = &e;
+        s.mcpfilter   = "mcp__on, mcp__regular, mcp__off, mcp__nodesc";
+        Str roster    = mcproster(&s, b);
+        expect(t, "mcp roster", roster,
+               "\n\nMCP servers, on demand (enable one with mcp enable NAME):"
+               "\n- on: the on-demand one\n");
+        s.mcpfilter   = {};
+        Str all       = mcproster(&s, b);
+        expect(t, "mcp roster all", find(all, Str("- other: filtered out")) >= 0
+                                       ? Str("yes") : Str("no"), "yes");
+    }
 }

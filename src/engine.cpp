@@ -10880,12 +10880,14 @@ static b32 mcpnamed(Slice<Str> list, Str name)
 // Forward: the MCP offering and listing helpers (engine.cpp, "MCP
 // servers"), defined after the tool handlers.
 static Slice<Str> mcpnames(Engine *, Arena *);
+static Str mcproster(Session *, Arena);
 static void mcpoffer(Session *, Arena);
 static Slice<Str> mcpsnownames(Session *, Arena);
 static void mcpdrop(Session *, Arena, Str);
 static McpServer *mcpsrvof(Session *, Str);
 static void logprefix(Session *, Arena);
 static b32 mcpchosen1(Str, Slice<Str>, Slice<Str>, b32);
+static b32 mcpanyallowed(Str, Str);
 
 // The names of the servers a session could offer, of its configuration
 // ([mcp NAME] enabled with a command or url) and its project's
@@ -11612,6 +11614,41 @@ static Slice<Str> mcpnames(Engine *e, Arena *a)
         }
     }
     return r;
+}
+
+// The on-demand MCP servers the session may enable, as a roster for the
+// mcp tool's description: "NAME: its description" lines, only servers the
+// session's filter allows, or nothing. The empty string when none, so a
+// session without hints is unchanged.
+static Str mcproster(Session *s, Arena a)
+{
+    Buf  b(&a, 0);
+    b32  any = 0;
+    for (IniSection *t = inifirst(s->e->ini, "mcp"); t; t = ininext(t)) {
+        Str name = t->name;
+        if (!name.len) {
+            continue;
+        }
+        Str desc = trim(cfgget(s->e->cfg, "mcp", name, "description", 0));
+        if (!desc.len || !mcpanyallowed(s->mcpfilter, name) ||
+                !cfgbool(trim(cfgget(s->e->cfg, "mcp", name, "enabled", 0))) ||
+                !cfgbool(trim(cfgget(s->e->cfg, "mcp", name, "on_demand", 0))) ||
+                !(trim(cfgget(s->e->cfg, "mcp", name, "command", 0)).len ||
+                  trim(cfgget(s->e->cfg, "mcp", name, "url", 0)).len)) {
+            continue;
+        }
+        if (!any) {
+            print(&b, "\n\nMCP servers, on demand (enable one with mcp "
+                      "enable NAME):\n");
+            any = 1;
+        }
+        print(&b, "- ");
+        print(&b, name);
+        print(&b, ": ");
+        print(&b, desc);
+        putbyte(&b, '\n');
+    }
+    return any ? finish(&b) : Str{};
 }
 
 // Whether a session's filter could offer any tool of a server: every
@@ -18158,6 +18195,7 @@ static void buildprefix(Session *s, Arena scratch)
     s->system = systemprompt(&s->perm, s->cwd, &s->te, s->nofolder, links);
     s->system = s->wt.name.len ? concat(&s->perm, s->system, wtpromptline(s, &scratch))
                                : s->system;
+    s->te.mcpavail = mcproster(s, s->perm);
     s->tools  = tooljson(&s->perm, &s->te);
     if (s->rolepr.len) {
         s->system = concat(&s->perm, s->system, "\n\n# Your role: ");
